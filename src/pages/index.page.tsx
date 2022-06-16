@@ -1,7 +1,15 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 const Home: NextPage = () => {
+  const { data: session, status: loading } = useSession();
+
+  const logout = () => {
+    signOut();
+    console.log(document.cookie);
+  };
+
   return (
     <>
       <Head>
@@ -11,6 +19,25 @@ const Home: NextPage = () => {
 
       <main>
         <h1>Hello world!</h1>
+        {!session && (
+          <div>
+            Você não está logado. <br />
+            Clique no botão abaixo para fazer o login. <br />
+            <button onClick={() : Promise<void> => signIn('auth0')}>Fazer login</button>
+          </div>
+        )}
+        {session && (
+          <div>
+            Logado como {session.user!.email} <br />
+            Não é você? Clique no botão abaixo para sair. <br />
+            <button onClick={() => logout()}>Sair</button>
+          </div>
+        )}
+        {loading === 'loading' && (
+          <div>
+            CARREGANDO
+          </div>
+        )}
       </main>
 
       <footer>
