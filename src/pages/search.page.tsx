@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useSession } from 'next-auth/react';
 import Nav from '../components/nav';
 
-const Index: NextPage = () => {
+const Search: NextPage = () => {
   const { data: session, status: loading } = useSession();
 
   return (
@@ -15,7 +15,7 @@ const Index: NextPage = () => {
 
       <main>
         <Nav />
-        <h2>Bem vindo a página inicial</h2>
+        <h2>Bem vindo a página de busca</h2>
         {!session && (
           <div>
             Você não está logado. <br />
@@ -42,4 +42,4 @@ const Index: NextPage = () => {
   );
 };
 
-export default Index;
+export default Search;
