@@ -12,22 +12,31 @@ interface SuccessResponseType {
 	cellphone: string,
 	teacher: boolean,
 	courses: string[],
-	available_hours: object,
+	available_hours: Record<string, number[]>,
 	available_locations: string[],
-	reviews: object[],
-	appointments: object[]
+	reviews: Record<string, unknown>[],
+	appointments: Record<string, unknown>[]
 }
 
  const userPage = async (req: NextApiRequest, res:NextApiResponse<ErrorResponseType | SuccessResponseType>): Promise<void> => {
   if (req.method === 'POST') {
+    // CREATE USER
     const {
       name,
       email,
       cellphone,
       teacher,
       courses,
-      available_hours,
-      available_locations
+      available_locations,
+      available_hours
+    }: {
+      name: string;
+      email: string;
+      cellphone: string;
+      teacher: boolean;
+      courses: string[];
+      available_locations: string[];
+      available_hours: Record<string, number[]>;
     } = req.body;
 
     if (!teacher) {
@@ -55,9 +64,18 @@ interface SuccessResponseType {
 
     const { db } = await connect();
 
-    const response = await db.collection('users').insertOne({
+    const lowerCaseEmail = email.toLowerCase();
+    const emailAlreadyExists = await db.findOne({ email: lowerCaseEmail });
+    if (emailAlreadyExists) {
+      res
+        .status(400)
+        .json({ error: `E-mail ${lowerCaseEmail} already exists` });
+      return;
+    }
+
+    const response = await db.insertOne({
       name,
-      email,
+      email: lowerCaseEmail,
       cellphone,
       teacher,
       courses: courses || [],
@@ -68,26 +86,7 @@ interface SuccessResponseType {
     });
 
     res.status(200).json(response);
-  } else if (req.method === 'GET') {
-    const { email } = req.body;
-
-    if (!email) {
-      res.status(400).json({error: 'Não encontrado o campo e-mail preenchido'});
-      return;
-    }
-
-    const { db } = await connect();
-
-    const response = await db.collection('users').findOne({email});
-
-    if (!response) {
-      res.status(400).json({error: 'Não foi encontrado nenhum usuário com este e-mail.'});
-      return;
-    }
-
-    res.status(200).json(response);
   }
-
   else {
     res.status(400).json({error: 'ERROR'});
   }

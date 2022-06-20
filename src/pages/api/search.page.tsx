@@ -1,15 +1,13 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import connect from '../../utils/database';
 
-
-
 interface ErrorResponseType {
   error: string;
 }
 
- const userPage = async (req: NextApiRequest, res:NextApiResponse<ErrorResponseType | object[]>): Promise<void> => {
+ const userPage = async (req: NextApiRequest, res:NextApiResponse<ErrorResponseType | Record<string, unknown>[]>): Promise<void> => {
   if (req.method === 'GET') {
-    const { courses } = req.body;
+    const { courses } : { courses: string } = req.body;
 
     if (!courses) {
       res.status(400).json({error: 'Não encontrado o campo de pesquisa preenchido'});
@@ -18,7 +16,7 @@ interface ErrorResponseType {
 
     const { db } = await connect();
 
-    const response = await db.collection('users').find({courses}).toArray();
+    const response = await db .find({ courses: { $in: [new RegExp(`^${courses}`, 'i')]}}).toArray();
 
     if (response.length === 0) {
       res.status(400).json({error: 'Não foi encontrado nenhum professor neste curso.'});

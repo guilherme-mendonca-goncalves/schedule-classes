@@ -1,7 +1,7 @@
-import { Db, MongoClient } from 'mongodb';
+import { Collection, MongoClient } from 'mongodb';
 
 interface ConnectType {
-  db: Db;
+  db: Collection;
   client: MongoClient;
 }
 
@@ -20,7 +20,7 @@ const connect = async (): Promise <ConnectType> => {
 */
   await client.connect();
 
-  const db = client.db('schedule-classes');
+  const db = client.db('schedule-classes').collection('users');
 
   return { db, client };
 };
