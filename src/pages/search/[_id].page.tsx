@@ -1,5 +1,5 @@
-import axios from 'axios';
 import {GetServerSideProps, GetServerSidePropsContext} from 'next';
+import getaxios from '../../utils/getaxios';
 
 interface Teacher {
   _id: string;
@@ -19,7 +19,6 @@ const teacherProfilePage = ({name, email, _id}: Teacher) : JSX.Element => {
     <>
       <h2>Página do Professor {name}</h2>
       <h3>E-mail: {email}</h3>
-      <h3>ID: {_id}</h3>
     </>
   );
 };
@@ -27,7 +26,7 @@ const teacherProfilePage = ({name, email, _id}: Teacher) : JSX.Element => {
 export const getServerSideProps: GetServerSideProps = async (context: GetServerSidePropsContext) => {
   const _id = context.query._id as string;
 
-  const response = await axios.get<Teacher>(`http://localhost:3000/api/teacher/${_id}`);
+  const response = await getaxios<Teacher>(`http://localhost:3000/api/teacher/${_id}`);
 
   const teacher = response.data;
 

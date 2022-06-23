@@ -14,23 +14,25 @@ const Index: NextPage = () => {
       </Head>
 
       <main>
-        <Nav />
-        <h2>Bem vindo a página inicial</h2>
+        {loading === 'loading' && (
+          <div>
+            CARREGANDO
+          </div>
+        )}
         {!session && (
           <div>
+            <Nav />
+            <h2>Bem vindo a página inicial</h2>
             Você não está logado. <br />
             Faça o login para continuar. <br />
           </div>
         )}
         {session && (
           <div>
+            <Nav />
+            <h2>Bem vindo a página inicial</h2>
             Logado como {session.user!.email} <br />
             Não é você? Clique no botão sair. <br />
-          </div>
-        )}
-        {loading === 'loading' && (
-          <div>
-            CARREGANDO
           </div>
         )}
       </main>

@@ -12,7 +12,7 @@ const Nav: NextComponentType = () => {
         <Link href="/search"><a>Buscar Professor</a></Link>
         {session ? (
           <>
-            <Link href="/profile"><a>Perfil</a></Link>
+            <Link href="/profile"><a>Visualizar perfil</a></Link>
             <button onClick={(): Promise<void> => signOut({ callbackUrl: '/' })}>Sair</button>
           </>
           ) : (

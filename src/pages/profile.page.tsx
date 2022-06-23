@@ -4,11 +4,83 @@ import { useSession } from 'next-auth/react';
 import Nav from '../components/nav';
 import useSWR from 'swr';
 import getaxios from '../utils/getaxios';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import Select from 'react-select';
 
 const Profile: NextPage = () => {
   const { data: session, status: loading } = useSession();
 
-  const { data, error } = useSWR(`/api/user/${session?.user?.email}`, getaxios);
+  const [isTeacher, setIsTeacher] = useState(false);
+  const [name, setName] = useState(null);
+  const [email, setEmail] = useState(null);
+  const [cellphone, setCellphone] = useState(null);
+  const [courses, setCourses] = useState(null);
+  const [availableLocations, setAvailableLocations] = useState(null);
+  const [monday, setMonday] = useState(null);
+  const [tuesday, setTuesday] = useState(null);
+  const [wednesday, setWednesday] = useState(null);
+  const [thursday, setThursday] = useState(null);
+  const [friday, setFriday] = useState(null);
+  const [loggedUserWithoutAccount, setLoggedUserWithoutAccount] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
+
+  const { data, error } = useSWR(!loggedUserWithoutAccount ? `/api/user/${session?.user?.email}`
+  : null, getaxios);
+
+  useEffect(() => {
+    setErrorCount((prevstate) => prevstate + 1);
+    if (error && errorCount === 2) setLoggedUserWithoutAccount(true);
+  }, [error, setErrorCount]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const available_hours = {
+      monday: monday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
+      tuesday: tuesday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
+      wednesday: wednesday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
+      thursday: thursday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
+      friday: friday?.split(',').map((item) => item.trim()).map((item) => parseInt(item))
+    };
+
+    for (const dayOfTheWeek in available_hours) {
+      if (!available_hours[dayOfTheWeek]) delete available_hours[dayOfTheWeek];
+    };
+
+    console.log(available_hours);
+
+    const data = {
+      name,
+      email,
+      cellphone,
+      teacher: isTeacher,
+      courses: courses?.split(',').map((item) => item.trim()),
+      available_locations: availableLocations?.split(',').map((item) => item.trim()),
+      available_hours
+    };
+    console.log(data);
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_URL}/api/user`, data);
+      setLoggedUserWithoutAccount(false);
+    } catch (err: any) {
+      alert(err.response.data.error);
+    }
+  };
+
+  const options = [
+    { value: 'yes', label: 'Sim' },
+    { value: 'no', label: 'Não' }
+  ];
+
+  const onChangeSelect = (value: any) => {
+    let selected = value.value;
+    if (selected === 'yes') {
+      setIsTeacher(true);
+    } else if (selected === 'no') {
+      setIsTeacher(false);
+    }
+  };
 
   return (
     <>
@@ -18,15 +90,21 @@ const Profile: NextPage = () => {
       </Head>
 
       <main>
-        <Nav />
+        {loading === 'loading' && (
+          <div>
+            CARREGANDO
+          </div>
+        )}
         {!session && (
           <div>
+            <Nav />
             Você não está logado. <br />
             Favor fazer o login para acessar essa página. <br />
           </div>
         )}
         {session && data && (
           <>
+          <Nav />
           <h2>Bem vindo {data.data.name}</h2>
           <div>
             Logado como {session.user!.email} <br />
@@ -35,12 +113,45 @@ const Profile: NextPage = () => {
           </>
 
         )}
-        {error && (
-          <h1>O usuário com o e-mail {session?.user?.email} não existe!</h1>
-        )}
-        {loading === 'loading' && (
+        {loggedUserWithoutAccount && session && (
           <div>
-            CARREGANDO
+            <Nav />
+            <h1>Seja bem vindo ao Schedule Classes!</h1>
+            <h2>Por favor, finalize a criação do seu perfil preenchendo as seguintes informações:</h2>
+            <form onSubmit={handleSubmit}>
+            <label>Digite seu nome completo:</label>
+              <input type='text' value={name!} onChange={(e) => setName(e.target.value)} placeholder='Nome Sobrenome'/>
+              <label>Digite seu e-mail:</label>
+              <input type='email' value={email!} onChange={(e) => setEmail(e.target.value)} placeholder='exemplo@exemplo.com.br'/>
+              <label>Digite o seu telefone, incluindo o DDD (somente números):</label>
+              <input type='cellphone' value={cellphone!} onChange={(e) => setCellphone(e.target.value)} placeholder='Exemplo: 11988776655'/>
+              <div>
+                <label>Você é um professor?</label>
+                  <Select defaultValue={options[1]} options={options} onChange={onChangeSelect} isSearchable={false}/>
+              </div>
+
+              {isTeacher && (
+                <>
+                  <label>Escreva as matérias que vai lecionar (separadas pos vírgula):</label>
+                  <input type='text' value={courses!} onChange={(e) => setCourses(e.target.value)} placeholder='Materia 1, Materia 2...'/>
+                  <label>Escreva os locais aonde você pode lecionar (separads pos vírgula):</label>
+                  <input type='text' value={availableLocations!} onChange={(e) => setAvailableLocations(e.target.value)} placeholder='Em casa, on-line, Sala 01...'/>
+                  <label>Escreva os horários que você pode lecionar (separads pos vírgula)</label>
+                  <label>Para sua segurança, não é permitido lecionar das 21h às 6h</label>
+                  <label>Segunda:</label>
+                  <input type='text' value={monday!} onChange={(e) => setMonday(e.target.value)} placeholder='8, 10, 11, 14...'/>
+                  <label>Terça:</label>
+                  <input type='text' value={tuesday!} onChange={(e) => setTuesday(e.target.value)} placeholder='8, 10, 11, 14...'/>
+                  <label>Quarta:</label>
+                  <input type='text' value={wednesday!} onChange={(e) => setWednesday(e.target.value)} placeholder='8, 10, 11, 14...'/>
+                  <label>Quinta:</label>
+                  <input type='text' value={thursday!} onChange={(e) => setThursday(e.target.value)} placeholder='8, 10, 11, 14...'/>
+                  <label>Sexta:</label>
+                  <input type='text' value={friday!} onChange={(e) => setFriday(e.target.value)} placeholder='8, 10, 11, 14...'/>
+                </>
+              )}
+              <button type='submit'>Criar perfil</button>
+            </form>
           </div>
         )}
       </main>

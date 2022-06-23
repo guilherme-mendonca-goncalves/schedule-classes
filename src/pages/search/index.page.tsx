@@ -41,16 +41,37 @@ const Search: NextPage = () => {
       </Head>
 
       <main>
-        <Nav />
-        <h2>Bem vindo a página de busca</h2>
+      {loading === 'loading' && (
+          <div>
+            CARREGANDO
+          </div>
+        )}
         {!session && (
           <div>
+            <Nav />
+            <h2>Bem vindo a página de busca</h2>
             Você não está logado. <br />
-            Faça o login para continuar. <br />
+            Para acessar a página do professor, favor fazer o login primeiro. <br />
+            <input
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            type="text"
+            placeholder="Nome da matéria"
+          />
+          <button type="submit" onClick={handleSearch}>
+            Pesquisar
+          </button>
+          {data.length !== 0 &&
+            data.map((teacher) => (
+              <h1 key={teacher._id}>{teacher.name}</h1>
+            ))
+          }
           </div>
         )}
         {session && (
           <div>
+            <Nav />
+            <h2>Bem vindo a página de busca</h2>
             Logado como {session.user!.email} <br />
             Não é você? Clique no botão sair. <br />
             <input
@@ -71,11 +92,7 @@ const Search: NextPage = () => {
               </Link>
             ))
           }
-          </div>
-        )}
-        {loading === 'loading' && (
-          <div>
-            CARREGANDO
+
           </div>
         )}
       </main>
