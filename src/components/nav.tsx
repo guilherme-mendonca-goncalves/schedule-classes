@@ -16,7 +16,7 @@ const Nav: NextComponentType = () => {
             <button onClick={(): Promise<void> => signOut({ callbackUrl: '/' })}>Sair</button>
           </>
           ) : (
-            <button onClick={(): Promise<void> => signIn('auth0', null, { prompt: 'login' })}>Login</button>
+            <button onClick={(): Promise<void> => signIn('auth0', { callbackUrl: '/profile' }, { prompt: 'login' })}>Login</button>
           )
         }
       </ul>

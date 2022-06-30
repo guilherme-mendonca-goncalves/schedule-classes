@@ -1,12 +1,29 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useSession } from 'next-auth/react';
-import Nav from '../components/nav';
 import useSWR from 'swr';
-import getaxios from '../utils/getaxios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
+
+import Nav from '../components/nav';
+import getaxios from '../utils/getaxios';
+import Link from 'next/link';
+
+const portugueseMonths = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
 
 const Profile: NextPage = () => {
   const { data: session, status: loading } = useSession();
@@ -24,24 +41,48 @@ const Profile: NextPage = () => {
   const [friday, setFriday] = useState(null);
   const [loggedUserWithoutAccount, setLoggedUserWithoutAccount] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+  const [showStudent, setShowStudent] = useState(false);
+  const [showTeacher, setShowTeacher] = useState(false);
 
   const { data, error } = useSWR(!loggedUserWithoutAccount ? `/api/user/${session?.user?.email}`
   : null, getaxios);
+
+  const studentAppointments = useMemo(
+    () =>
+      data?.data?.appointments?.filter(
+        (appointment) => appointment.teacher_email !== session?.user?.email
+      ),
+    [data]
+  );
+
+  const teacherAppointments = useMemo(
+    () =>
+      data?.data?.appointments?.filter(
+        (appointment) => appointment.teacher_email === session?.user?.email
+      ),
+    [data]
+  );
 
   useEffect(() => {
     setErrorCount((prevstate) => prevstate + 1);
     if (error && errorCount === 2) setLoggedUserWithoutAccount(true);
   }, [error, setErrorCount]);
 
+  const dayWeekValidation = (dayOfTheWeek) => {
+    if (dayOfTheWeek) {
+      return dayOfTheWeek.split(',').map((item) => item.trim()).map((item) => parseInt(item));
+    } else return;
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const available_hours = {
-      monday: monday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
-      tuesday: tuesday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
-      wednesday: wednesday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
-      thursday: thursday?.split(',').map((item) => item.trim()).map((item) => parseInt(item)),
-      friday: friday?.split(',').map((item) => item.trim()).map((item) => parseInt(item))
+      monday: dayWeekValidation(monday),
+      tuesday: dayWeekValidation(tuesday),
+      wednesday: dayWeekValidation(wednesday),
+      thursday: dayWeekValidation(thursday),
+      friday: dayWeekValidation(friday)
     };
 
     for (const dayOfTheWeek in available_hours) {
@@ -59,7 +100,6 @@ const Profile: NextPage = () => {
       available_locations: availableLocations?.split(',').map((item) => item.trim()),
       available_hours
     };
-    console.log(data);
     try {
       await axios.post(`${process.env.NEXT_PUBLIC_URL}/api/user`, data);
       setLoggedUserWithoutAccount(false);
@@ -105,11 +145,211 @@ const Profile: NextPage = () => {
         {session && data && (
           <>
           <Nav />
-          <h2>Bem vindo {data.data.name}</h2>
+          <p>
+            Olá, {data.data.name}
+          </p>
+          <p>
+            E-mail: {data.data.email}
+          </p>
+          <p>
+            Telefone: {data.data.cellphone}
+          </p>
           <div>
-            Logado como {session.user!.email} <br />
-            Não é você? Clique no botão sair! <br />
+            <button onClick={() => setShowStudent((prevState) => !prevState)}>
+              <span>Veja suas informações como aluno:</span>
+            </button>
           </div>
+          {showStudent && (
+            <div>
+              <p>Seus agendamentos:</p>
+              <div>
+                {studentAppointments.map((appointment) => (
+                  <div key={appointment.date} className="mb-2">
+                    <p>{appointment.course}:</p>
+                    <div>
+                      <div>
+                        <Link href={`/search/${appointment.teacher_id}`}>
+                          <a>
+                            <p>{appointment.teacher_name}</p>
+                          </a>
+                        </Link>
+                      </div>
+                      <div>
+                        <p>
+                          {`${new Date(appointment.date).getDate()} de ${
+                            portugueseMonths[
+                              new Date(appointment.date).getMonth()
+                            ]
+                          } de ${new Date(
+                            appointment.date
+                          ).getFullYear()} ${new Date(
+                            appointment.date
+                          ).getHours()}:00`}
+                        </p>
+                      </div>
+                      <div
+
+                        onClick={() => {
+                          appointment.appointment_link &&
+                            alert(
+                              'Link da reunião: ' + appointment.appointment_link
+                            );
+                        }}
+                      >
+                        <p
+
+                        >
+                          {appointment.location}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <button onClick={() => setShowTeacher((prevState) => !prevState)}>
+              <span>Veja suas informações como professor:</span>
+            </button>
+          </div>
+          {showTeacher && (
+            <>
+              <div>
+                <p>Seus agendamentos:</p>
+                <div>
+                  {teacherAppointments.map((appointment) => (
+                    <div key={appointment.date} className="mb-2">
+                      <p>{appointment.course}:</p>
+                      <div>
+                        <div>
+                          <Link href={`/search/${appointment.teacher_id}`}>
+                            <a>
+                              <p>{appointment.teacher_name}</p>
+                            </a>
+                          </Link>
+                        </div>
+                        <div>
+                          <p>
+                            {`${new Date(appointment.date).getDate()} de ${
+                              portugueseMonths[
+                                new Date(appointment.date).getMonth()
+                              ]
+                            } de ${new Date(
+                              appointment.date
+                            ).getFullYear()} ${new Date(
+                              appointment.date
+                            ).getHours()}:00`}
+                          </p>
+                        </div>
+                        <div
+                          onClick={() => {
+                            appointment.appointment_link &&
+                              alert(
+                                'Link da reunião: ' +
+                                  appointment.appointment_link
+                              );
+                          }}
+                        >
+                          <p>{appointment.location}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span>
+                  Sua disponibilidade
+                </span>
+              </div>
+              <div>
+                <div>
+                  <div>
+                    <p>Disciplinas:</p>
+                    <div>
+                      <div>
+                        <p>{data.data.courses.join(', ')}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p>Locais:</p>
+                    <div >
+                      <div >
+                        <p>{data.data.available_locations.join(', ')}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p>Horários:</p>
+                    <div>
+                      <div>
+                        <p>Segunda</p>
+                      </div>
+                      <div>
+                        <p>
+                          {data.data.available_hours?.monday?.join(', ') ||
+                            'Não disponível'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div>
+                        <p>Terça</p>
+                      </div>
+                      <div>
+                        <p>
+                          {data.data.available_hours?.tuesday?.join(', ') ||
+                            'Não disponível'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div>
+                        <p>Quarta</p>
+                      </div>
+                      <div>
+                        <p>
+                          {data.data.available_hours?.wednesday?.join(', ') ||
+                            'Não disponível'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div >
+                      <div>
+                        <p>Quinta</p>
+                      </div>
+                      <div>
+                        <p>
+                          {data.data.available_hours?.thursday?.join(', ') ||
+                            'Não disponível'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div>
+                        <p>Sexta</p>
+                      </div>
+                      <div>
+                        <p>
+                          {data.data.available_hours?.friday?.join(', ') ||
+                            'Não disponível'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
           </>
 
         )}
@@ -127,7 +367,7 @@ const Profile: NextPage = () => {
               <input type='cellphone' value={cellphone!} onChange={(e) => setCellphone(e.target.value)} placeholder='Exemplo: 11988776655'/>
               <div>
                 <label>Você é um professor?</label>
-                  <Select defaultValue={options[1]} options={options} onChange={onChangeSelect} isSearchable={false}/>
+                <Select defaultValue={options[1]} options={options} onChange={onChangeSelect} isSearchable={false}/>
               </div>
 
               {isTeacher && (

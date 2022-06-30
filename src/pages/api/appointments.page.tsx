@@ -24,89 +24,70 @@ interface ErrorResponseType {
 }
 
 interface SuccessResponseType {
-  date: string,
-  teacher_name: string,
-  teacher_id: string,
-  student_name: string,
-  student_id: string,
-  course: string,
-  location: string,
-  appointment_link: string
+  date: string;
+  teacher_name: string;
+  teacher_id: string;
+  student_name: string;
+  student_id: string;
+  course: string;
+  location: string;
+  appointment_link: string;
 }
 
- const userPage = async (req: NextApiRequest, res:NextApiResponse<ErrorResponseType | SuccessResponseType>): Promise<void> => {
+ const appointmentsPage = async (req: NextApiRequest, res:NextApiResponse<ErrorResponseType | SuccessResponseType>): Promise<void> => {
   if (req.method === 'POST') {
-    /*const session = await getSession({ req });
+    const session = await getSession({ req });
 
     if (!session) {
-      // Not Signed in
-      res.status(400).json({error: 'Faça o login primeiro.'});
+      res.status(400).json({ error: 'Por favor faça o login primeiro' });
       return;
-    }*/
+    }
 
     const {
       date,
-      teacher_name,
       teacher_id,
-      student_name,
-      student_id,
+      student_email,
       course,
       location,
-      appointment_link
-    } : {
+      appointment_link,
+    }: {
       date: string;
-      teacher_name: string;
       teacher_id: string;
-      student_name: string;
-      student_id: string;
+      student_email: string;
       course: string;
       location: string;
       appointment_link: string;
     } = req.body;
 
-    if (
-        !date ||
-        !teacher_name ||
-        !teacher_id ||
-        !student_name ||
-        !student_id ||
-        !course ||
-        !location
-      ) {
-      res.status(400).json({error: 'Algum parâmetro está vazio'});
+    if (session.user.email !== student_email) {
+      res
+        .status(400)
+        .json({ error: 'Utilize o mesmo e-mail da sessão e tente novamente' });
       return;
     }
 
-     // check if teacher_id or student_id is invalid
-     try {
-      const testTeacherID = new ObjectId(teacher_id);
-      const testStudentID = new ObjectId(student_id);
+    if (!date || !teacher_id || !student_email || !course || !location) {
+      res.status(400).json({ error: 'Alguma informação não foi preenchida' });
+      return;
+    }
+
+    // check if teacher_id is invalid
+    let testTeacherID: ObjectId;
+    try {
+      testTeacherID = new ObjectId(teacher_id);
     } catch {
-      res.status(400).json({ error: 'Wrong objectID' });
+      res.status(400).json({ error: 'ObjectID errado' });
       return;
     }
 
     const parsedDate = new Date(date);
     const now = new Date();
-    const today = {
-      day: now.getDate(),
-      month: now.getMonth(),
-      year: now.getFullYear(),
-    };
-    const fullDate = {
-      day: parsedDate.getDate(),
-      month: parsedDate.getMonth(),
-      year: parsedDate.getFullYear(),
-    };
+    const auxParsedDate = new Date(date);
 
     // check if requested date is on the past
-    if (
-      fullDate.year < today.year ||
-      fullDate.month < today.month ||
-      fullDate.day < today.day
-    ) {
+    if (auxParsedDate.setHours(0, 0, 0, 0) <= now.setHours(0, 0, 0, 0)) {
       res.status(400).json({
-        error: 'You can\'t create appointments on the past',
+        error: 'Você não pode agendar aulas em datas passadas',
       });
       return;
     }
@@ -114,23 +95,39 @@ interface SuccessResponseType {
     const { db } = await connect();
 
     // check if teacher exists
-    const teacherExists: User = await db.findOne({_id: new ObjectId(teacher_id)});
+    const teacherExists: User = await db.findOne({
+      _id: testTeacherID,
+    });
 
     if (!teacherExists) {
-      res.status(400).json({error: `O professor ${teacher_name} com o ID: ${teacher_id} não existe.`});
+      res.status(400).json({
+        error: `O professor ${teacherExists.name} com ID ${teacher_id} não existe`,
+      });
       return;
     }
 
     // check if student exists
-    const studentExists: User = await db.findOne({_id: new ObjectId(student_id)});
+    const studentExists: User = await db.findOne({
+      email: student_email,
+    });
 
     if (!studentExists) {
-      res.status(400).json({error: `O aluno ${student_name} com o ID: ${student_id} não existe.`});
+      res.status(400).json({
+        error: `O estudante com o e-mail ${student_email} não existe`,
+      });
       return;
     }
 
-     // check if requested day/hour is available for the teacher
-     const weekdays = [
+    // check if teacher and student are the same person
+    if (student_email === teacherExists.email) {
+      res
+        .status(400)
+        .json({ error: 'Você não pode agendar uma aula com você mesmo' });
+      return;
+    }
+
+    // check if requested day/hour is available for the teacher
+    const weekdays = [
       'sunday',
       'monday',
       'tuesday',
@@ -143,7 +140,7 @@ interface SuccessResponseType {
     const requestedHour = parsedDate.getUTCHours() - 3;
     if (!teacherExists.available_hours[requestedDay]?.includes(requestedHour)) {
       res.status(400).json({
-        error: `Teacher ${teacher_name} is not available at ${requestedDay} ${requestedHour}:00`,
+        error: `O professor ${teacherExists.name} não esta disponível em ${requestedDay} ${requestedHour}:00`,
       });
       return;
     }
@@ -154,7 +151,9 @@ interface SuccessResponseType {
 
       if (appointmentDate.getTime() === parsedDate.getTime()) {
         res.status(400).json({
-          error: `Teacher ${teacher_name} already have an appointment at ${appointmentDate.getDate()}/${
+          error: `O professor ${
+            teacherExists.name
+          } já possui uma aula agendade em ${appointmentDate.getDate()}/${
             appointmentDate.getMonth() + 1
           }/${appointmentDate.getFullYear()} ${
             appointmentDate.getUTCHours() - 3
@@ -167,20 +166,31 @@ interface SuccessResponseType {
     // create appointment object
     const appointment = {
       date,
-      teacher_name,
+      teacher_name: teacherExists.name,
+      teacher_email: teacherExists.email,
       teacher_id,
-      student_name,
-      student_id,
+      student_name: studentExists.name,
+      student_id: studentExists._id,
       course,
       location,
-      appointment_link: appointment_link || ''
+      appointment_link: appointment_link || '',
     };
 
     // update teacher appointments
-    await db.updateOne({ _id: new ObjectId(teacher_id) },{ $push: { appointments: appointment }});
+    await db.updateOne(
+      { _id: new ObjectId(teacher_id) },
+      { $push: { appointments: appointment } }
+    );
 
     // update student appointments
-    await db.updateOne({ _id: new ObjectId(student_id) },{ $push: { appointments: appointment }});
-  };
+    await db.updateOne(
+      { _id: new ObjectId(studentExists._id) },
+      { $push: { appointments: appointment } }
+    );
+
+    res.status(200).json(appointment);
+  } else {
+    res.status(400).json({ error: 'Wrong request method' });
+  }
 };
-export default userPage;
+export default appointmentsPage;
